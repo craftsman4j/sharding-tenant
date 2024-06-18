@@ -1,0 +1,85 @@
+server:
+  port: 8080
+
+spring:
+  shardingsphere:
+    datasource:
+      names: ruoyi-vue-pro,tenant-a,tenant-b
+      ruoyi-vue-pro:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://43.142.4.174:3306/ruoyi-vue-pro?allowPublicKeyRetrieval=true&useSSL=false&autoReconnect=true&characterEncoding=utf8
+        username: dev
+        password: 123456
+      tenant-a:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://43.142.4.174:3306/test_db_tenant_a?allowPublicKeyRetrieval=true&useSSL=false&autoReconnect=true&characterEncoding=utf8
+        username: dev
+        password: 123456
+      tenant-b:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://43.142.4.174:3306/test_db_tenant_b?allowPublicKeyRetrieval=true&useSSL=false&autoReconnect=true&characterEncoding=utf8
+        username: dev
+        password: 123456
+    sharding:
+#      broadcast-tables:
+#        - tb_user
+      default-data-source-name: ruoyi-vue-pro
+      default-database-strategy:
+        hint:
+          algorithm-class-name: com.shardingjdbc.jpa.tenant.dbhint.config.MyHintShardingDBAlgorithm
+      tables:
+        tb_user:
+          actual-data-nodes: tenant-${['a','b']}.tb_user
+          key-generator:
+            column: id
+            type: SNOWFLAKE
+            props:
+              worker:
+                id: 123
+        tb_role:
+          actual-data-nodes: tenant-${['a','b']}.tb_role
+          key-generator:
+            column: id
+            type: SNOWFLAKE
+            props:
+              worker:
+                id: 123
+        tb_user_role:
+          actual-data-nodes: tenant-${['a','b']}.tb_user_role
+          key-generator:
+            column: id
+            type: SNOWFLAKE
+            props:
+              worker:
+                id: 123
+      binding-tables: tb_user,tb_role,tb_user_role
+    props:
+      sql:
+        show: true
+  jpa:
+    open-in-view: false
+    generate-ddl: false
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+        use-new-id-generator-mappings: false
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui
+  default-flat-param-object: true
+
+knife4j:
+  enable: true
+  setting:
+    # default lang
+    language: zh_cn
