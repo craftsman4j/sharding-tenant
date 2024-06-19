@@ -40,8 +40,8 @@ public class TenantDatasourceAspect {
         createShardingDataSource("tenant-c");
 
         HintManager hintManager = HintManager.getInstance();
-        // pdai: 实际环境将client信息放在xxxContext中（由ThreadLocal承接），并通过client-id来获取tenant.
-        // 这里为了方便演示，只是使用了tenant-a
+        // pdai: 实际环境将 client 信息放在 xxxContext 中（由ThreadLocal承接），并通过 client-id 来获取 tenant.
+        // 这里为了方便演示，只是使用了 tenant-c
         hintManager.setDatabaseShardingValue("tenant-c");
     }
 
