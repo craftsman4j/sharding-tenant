@@ -1,8 +1,14 @@
 package com.shardingjdbc.jpa.tenant.dbhint.config;
 
+import cn.hutool.core.util.ReflectUtil;
 import com.zaxxer.hikari.HikariDataSource;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.shardingsphere.driver.jdbc.core.datasource.ShardingSphereDataSource;
+import org.apache.shardingsphere.infra.datanode.DataNode;
 import org.apache.shardingsphere.infra.hint.HintManager;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
+import org.apache.shardingsphere.mode.manager.ContextManager;
+import org.apache.shardingsphere.sharding.rule.ShardingRule;
 import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
@@ -13,8 +19,10 @@ import org.springframework.stereotype.Component;
 import javax.annotation.Resource;
 import javax.sql.DataSource;
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.shardingjdbc.jpa.tenant.dbhint.config.CustomContextManagerLifecycleListener.CONTEXT_MANAGER_HOLDER;
 
 /**
  * @author pdai
@@ -22,6 +30,7 @@ import java.util.Map;
 @Aspect
 @Order(1)
 @Component
+@Slf4j
 public class TenantDatasourceAspect {
 
     @Resource
@@ -76,6 +85,34 @@ public class TenantDatasourceAspect {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void createShardingDataSource() {
+        ContextManager contextManager = CONTEXT_MANAGER_HOLDER.get("logic_db");
+        ShardingSphereDatabase database = contextManager.getDatabase("logic_db");
+        database.getRuleMetaData().getRules().forEach(rule -> {
+            if (rule instanceof ShardingRule) {
+                ShardingRule shardingRule = ((ShardingRule) rule);
+                shardingRule.getShardingTables().forEach((name, shardingTable) -> {
+                    List<DataNode> actualDataNodes = shardingTable.getActualDataNodes();
+                    actualDataNodes.add(new DataNode(actualDataNodes.get(0).getDataSourceName(), "order_new"));
+                    actualDataNodes = new HashSet<>(actualDataNodes).stream().collect(Collectors.toList());
+                    Set<String> actualTables = (Set<String>) ReflectUtil.getFieldValue(shardingTable, "actualTables");
+                    actualTables.add("order_new");
+                    Map<DataNode, Integer> dataNodeIndexMap = new HashMap<>();
+                    Map<String, Collection<String>> dataSourceToTablesMap = shardingTable.getDataSourceToTablesMap();
+                    for (int i = 0; i < actualDataNodes.size(); i++) {
+                        dataNodeIndexMap.put(actualDataNodes.get(i), i);
+                        dataSourceToTablesMap.get(actualDataNodes.get(i).getDataSourceName()).add(actualDataNodes.get(i).getTableName());
+                    }
+                    ReflectUtil.setFieldValue(shardingTable, "dataNodeIndexMap", dataNodeIndexMap);
+                    ReflectUtil.setFieldValue(shardingTable, "dataSourceToTablesMap", dataSourceToTablesMap);
+                    ReflectUtil.setFieldValue(shardingTable, "actualTables", actualTables);
+                    ReflectUtil.setFieldValue(shardingTable, "actualDataNodes", actualDataNodes);
+                });
+                log.info("shardingRule:{}", shardingRule);
+            }
+        });
     }
 
 }
